@@ -135,7 +135,7 @@ class BTree {
     }
 }
 
-public class BTreeDemo {
+public class Main {
     public static void main(String[] args) {
         BTree tree = new BTree(3);
 
