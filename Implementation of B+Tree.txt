@@ -1,0 +1,200 @@
+import java.util.*;
+
+class BPlusTree {
+
+    abstract class Node {
+        List<Integer> keys = new ArrayList<>();
+        InternalNode parent;
+
+        abstract boolean isLeaf();
+    }
+
+    class InternalNode extends Node {
+        List<Node> children = new ArrayList<>();
+
+        @Override
+        boolean isLeaf() {
+            return false;
+        }
+    }
+
+    class LeafNode extends Node {
+        List<String> values = new ArrayList<>();
+        LeafNode next;
+
+        @Override
+        boolean isLeaf() {
+            return true;
+        }
+    }
+
+    private Node root;
+    private int order;
+
+    public BPlusTree(int order) {
+        this.order = order;
+        root = new LeafNode();
+    }
+
+    public void insert(int key, String value) {
+        LeafNode leaf = findLeaf(root, key);
+
+        int pos = 0;
+        while (pos < leaf.keys.size() && key > leaf.keys.get(pos))
+            pos++;
+
+        leaf.keys.add(pos, key);
+        leaf.values.add(pos, value);
+
+        if (leaf.keys.size() == order)
+            splitLeaf(leaf);
+    }
+
+    private LeafNode findLeaf(Node node, int key) {
+        if (node.isLeaf())
+            return (LeafNode) node;
+
+        InternalNode internal = (InternalNode) node;
+
+        int i = 0;
+        while (i < internal.keys.size() && key >= internal.keys.get(i))
+            i++;
+
+        return findLeaf(internal.children.get(i), key);
+    }
+
+    private void splitLeaf(LeafNode leaf) {
+        int mid = order / 2;
+
+        LeafNode newLeaf = new LeafNode();
+
+        newLeaf.keys.addAll(leaf.keys.subList(mid, leaf.keys.size()));
+        newLeaf.values.addAll(leaf.values.subList(mid, leaf.values.size()));
+
+        leaf.keys = new ArrayList<>(leaf.keys.subList(0, mid));
+        leaf.values = new ArrayList<>(leaf.values.subList(0, mid));
+
+        newLeaf.next = leaf.next;
+        leaf.next = newLeaf;
+
+        if (leaf.parent == null) {
+            InternalNode newRoot = new InternalNode();
+
+            newRoot.keys.add(newLeaf.keys.get(0));
+            newRoot.children.add(leaf);
+            newRoot.children.add(newLeaf);
+
+            leaf.parent = newRoot;
+            newLeaf.parent = newRoot;
+
+            root = newRoot;
+        } else {
+            insertIntoParent(leaf.parent, newLeaf.keys.get(0), newLeaf);
+        }
+    }
+
+    private void insertIntoParent(InternalNode parent, int key, Node child) {
+
+        int pos = 0;
+        while (pos < parent.keys.size() && key > parent.keys.get(pos))
+            pos++;
+
+        parent.keys.add(pos, key);
+        parent.children.add(pos + 1, child);
+        child.parent = parent;
+
+        if (parent.keys.size() == order)
+            splitInternal(parent);
+    }
+
+    private void splitInternal(InternalNode node) {
+
+        int mid = order / 2;
+        int upKey = node.keys.get(mid);
+
+        InternalNode newInternal = new InternalNode();
+
+        newInternal.keys.addAll(node.keys.subList(mid + 1, node.keys.size()));
+        newInternal.children.addAll(node.children.subList(mid + 1, node.children.size()));
+
+        for (Node child : newInternal.children)
+            child.parent = newInternal;
+
+        node.keys = new ArrayList<>(node.keys.subList(0, mid));
+        node.children = new ArrayList<>(node.children.subList(0, mid + 1));
+
+        if (node.parent == null) {
+
+            InternalNode newRoot = new InternalNode();
+
+            newRoot.keys.add(upKey);
+            newRoot.children.add(node);
+            newRoot.children.add(newInternal);
+
+            node.parent = newRoot;
+            newInternal.parent = newRoot;
+
+            root = newRoot;
+
+        } else {
+            insertIntoParent(node.parent, upKey, newInternal);
+        }
+    }
+
+    public String search(int key) {
+
+        LeafNode leaf = findLeaf(root, key);
+
+        for (int i = 0; i < leaf.keys.size(); i++) {
+            if (leaf.keys.get(i) == key)
+                return leaf.values.get(i);
+        }
+
+        return null;
+    }
+
+    public void displayLeaves() {
+
+        Node node = root;
+
+        while (!node.isLeaf())
+            node = ((InternalNode) node).children.get(0);
+
+        LeafNode leaf = (LeafNode) node;
+
+        while (leaf != null) {
+
+            System.out.print("[ ");
+
+            for (int k : leaf.keys)
+                System.out.print(k + " ");
+
+            System.out.print("] -> ");
+
+            leaf = leaf.next;
+        }
+
+        System.out.println("NULL");
+    }
+
+    public static void main(String[] args) {
+
+        BPlusTree tree = new BPlusTree(4);
+
+        tree.insert(10, "A");
+        tree.insert(20, "B");
+        tree.insert(5, "C");
+        tree.insert(6, "D");
+        tree.insert(12, "E");
+        tree.insert(30, "F");
+        tree.insert(7, "G");
+        tree.insert(17, "H");
+
+        System.out.println("Leaf Nodes:");
+        tree.displayLeaves();
+
+        System.out.println("\nSearch 12 : " + tree.search(12));
+        System.out.println("Search 30 : " + tree.search(30));
+        System.out.println("Search 15 : " + tree.search(15));
+    }
+}
